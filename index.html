@@ -6179,12 +6179,9 @@ function renderEndOfDay() {
         </div>
         <div class="card-body">
           <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 13.5px; color: var(--text);">
-            <li>A JSON backup will download to your device.</li>
-            <li>Your mail app will open with the JSON addressed to <strong>${escapeHTML(EOD_EMAIL_TO)}</strong>.</li>
-            <li>Today's <strong>${todays.length}</strong> visit${todays.length === 1 ? '' : 's'} will be removed from local storage.</li>
-            ${todaysMileage.length > 0
-              ? `<li>Today's mileage (<strong>${totalMiles.toFixed(1)}</strong> mile${totalMiles === 1 ? '' : 's'}, ${fmtDriveTime(totalDriveMinutes)} drive time) will be exported and cleared from this device.</li>`
-              : '<li>No mileage recorded today.</li>'}
+            <li>The share sheet will open with a JSON file — tap Mail and send it to <strong>${escapeHTML(EOD_EMAIL_TO)}</strong> as an attachment.</li>
+            <li>Today's <strong>${todays.length}</strong> visit${todays.length === 1 ? '' : 's'}${todaysMileage.length > 0 ? ` and ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : ''} will be cleared from this device after you send.</li>
+            <li>If you cancel the share sheet, nothing is cleared.</li>
           </ul>
           ${unactioned.length > 0
             ? `<div class="badge danger" style="display: block; padding: 8px 10px; margin-bottom: 12px; line-height: 1.4;">Warning: ${unactioned.length} visit${unactioned.length === 1 ? ' has' : 's have'} unactioned referrals or actions. Submitting now will export them as-is.</div>`
@@ -6232,7 +6229,12 @@ function renderEndOfDay() {
 // Build the export payload, trigger a JSON download, open the mailto, and
 // remove today's visits from storage. Each step is wrapped so a failure in
 // (e.g.) mail compose doesn't block the local cleanup.
-function eodSubmit(visits, mileage) {
+//
+// On iPhone Safari (and any browser that supports navigator.canShare with files)
+// we use the Web Share API so the JSON arrives as a real file attachment in Mail.
+// The previous mailto approach was capped to ~2000 chars, so larger days
+// truncated. The share sheet has no such cap.
+async function eodSubmit(visits, mileage) {
   visits = visits || [];
   mileage = mileage || [];
   if (visits.length === 0 && mileage.length === 0) {
@@ -6255,44 +6257,68 @@ function eodSubmit(visits, mileage) {
     mileage,
   };
   const json = JSON.stringify(payload, null, 2);
+  const filename = `dom-optom-${today}.json`;
+  const milesLabel = mileage.length > 0 ? `, ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : '';
+  const subject = `Dom-Optom end of day — ${today} (${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel})`;
+  const intro = `End-of-day submission for ${today}.\n${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel}.`;
 
-  // 1) Download the JSON as a backup. The user keeps a local copy even if mail
-  //    compose fails or they cancel sending.
+  // 1) Try the Web Share API with a File attachment. This is the iOS-native
+  //    share sheet — the user picks Mail/Messages/etc. and the JSON travels
+  //    as a real attachment with no size cap. Desktop Safari and old browsers
+  //    fall through to mailto.
+  let sharedOk = false;
+  let sharedAttempted = false;
   try {
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dom-optom-${today}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (e) {
-    console.error('JSON download failed:', e);
-    toast('Could not download backup.', 'error');
-  }
-
-  // 2) Open mail compose. mailto bodies have practical length limits (~2000 chars
-  //    in some clients), so for larger payloads we drop the JSON in the body but
-  //    also remind the user the backup file was downloaded.
-  try {
-    const milesLabel = mileage.length > 0 ? `, ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : '';
-    const subject = `Dom-Optom end of day — ${today} (${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel})`;
-    const intro = `End-of-day submission for ${today}.\n${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel}. JSON backup attached from your downloads folder.\n\n--- JSON ---\n`;
-    const body = intro + json;
-    const mailto = `mailto:${EOD_EMAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    // Some browsers cap mailto URLs around 2000 chars. If we're over that, fall
-    // back to a body that just instructs the user to attach the downloaded file.
-    if (mailto.length > 1900) {
-      const shortBody = `${intro}(JSON too large for mail body — please attach the file dom-optom-${today}.json from your downloads.)`;
-      window.location.href = `mailto:${EOD_EMAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shortBody)}`;
-    } else {
-      window.location.href = mailto;
+    const file = new File([json], filename, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+      sharedAttempted = true;
+      // The share sheet must be opened from a user gesture. The confirm-modal
+      // button click is the gesture; this async call still counts on iOS
+      // because the click handler is the same task as this promise.
+      await navigator.share({
+        files: [file],
+        title: subject,
+        text: `${intro}\nThe JSON file is attached.`,
+      });
+      sharedOk = true;
     }
   } catch (e) {
-    console.error('mailto failed:', e);
-    toast('Could not open mail app. JSON has been downloaded.', 'error');
+    // AbortError = user cancelled the share sheet. Treat as a successful
+    // "shown the sheet" so we don't fall back to mailto + download.
+    if (e && e.name === 'AbortError') {
+      sharedAttempted = true;
+      sharedOk = false;
+      toast('Share cancelled — records not yet cleared.', 'error');
+      return;
+    }
+    console.error('Web Share failed:', e);
+  }
+
+  // 2) If we couldn't share (desktop, old browser, share denied), fall back to
+  //    the legacy flow: download the JSON file, then open mailto with a short
+  //    body asking the user to attach the downloaded file.
+  if (!sharedAttempted) {
+    try {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      console.error('JSON download failed:', e);
+      toast('Could not download backup.', 'error');
+    }
+    try {
+      const shortBody = `${intro}\n\nThe file ${filename} was just downloaded to your device — please attach it to this email.`;
+      window.location.href = `mailto:${EOD_EMAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shortBody)}`;
+    } catch (e) {
+      console.error('mailto failed:', e);
+      toast('Could not open mail app. JSON has been downloaded.', 'error');
+    }
   }
 
   // 3) Delete today's visits from local storage. Only this user's records for
