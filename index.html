@@ -3841,6 +3841,7 @@ function getPrefs() {
     notDispensedReasons: DEFAULT_NON_DISPENSE_REASONS.slice(),
     assumedFinalVisitMin: DEFAULT_LAST_APPT_DURATION_MIN,
     showBestOf: true,
+    eodEmailTo: '',
     targets: { ...DEFAULT_TARGETS },
   };
   try {
@@ -3864,6 +3865,7 @@ function getPrefs() {
         ? p.assumedFinalVisitMin
         : DEFAULT_LAST_APPT_DURATION_MIN,
       showBestOf: typeof p.showBestOf === 'boolean' ? p.showBestOf : true,
+      eodEmailTo: typeof p.eodEmailTo === 'string' ? p.eodEmailTo : '',
       targets: (() => {
         const out = { ...DEFAULT_TARGETS };
         const t = p.targets || {};
@@ -5966,7 +5968,16 @@ function saveMileageEntry(stops, matrix, home, homeReturn, prefs) {
  * The user confirms via an "Are you sure?" modal before any of that happens.
  * ============================================================================ */
 
-const EOD_EMAIL_TO = 'ben.arm.personal@gmail.com';
+// Default email used for end-of-day submissions. Can be overridden per-device
+// in Settings (Prefs.eodEmailTo). Read via getEodEmail() everywhere so the
+// user-set value always wins.
+const EOD_EMAIL_DEFAULT = 'ben.arm.personal@gmail.com';
+function getEodEmail() {
+  try {
+    const e = (getPrefs().eodEmailTo || '').trim();
+    return e || EOD_EMAIL_DEFAULT;
+  } catch { return EOD_EMAIL_DEFAULT; }
+}
 
 // Today's visits for the current user. Patient records are tagged with userId;
 // admin sees everyone's, regular users see only their own.
@@ -6149,7 +6160,7 @@ function renderEndOfDay() {
         <div class="card-head">
           <div>
             <h3 class="card-title">Submit end of day</h3>
-            <div class="card-sub">Emails today's records to <strong>${escapeHTML(EOD_EMAIL_TO)}</strong> for central storage, then clears them from this device.</div>
+            <div class="card-sub">Emails today's records to <strong>${escapeHTML(getEodEmail())}</strong> for central storage, then clears them from this device. <span style="color: var(--text-muted);">Change this in <a href="#settings" style="color: var(--accent); text-decoration: underline;">Settings</a>.</span></div>
           </div>
         </div>
         <div class="card-body">
@@ -6179,7 +6190,7 @@ function renderEndOfDay() {
         </div>
         <div class="card-body">
           <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 13.5px; color: var(--text);">
-            <li>The share sheet will open with a JSON file — tap Mail and send it to <strong>${escapeHTML(EOD_EMAIL_TO)}</strong> as an attachment.</li>
+            <li>The share sheet will open with a JSON file — tap Mail, paste <strong>${escapeHTML(getEodEmail())}</strong> into the To: field, and send.</li>
             <li>Today's <strong>${todays.length}</strong> visit${todays.length === 1 ? '' : 's'}${todaysMileage.length > 0 ? ` and ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : ''} will be cleared from this device after you send.</li>
             <li>If you cancel the share sheet, nothing is cleared.</li>
           </ul>
@@ -6259,6 +6270,7 @@ async function eodSubmit(visits, mileage) {
   const json = JSON.stringify(payload, null, 2);
   const filename = `dom-optom-${today}.json`;
   const milesLabel = mileage.length > 0 ? `, ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : '';
+  const recipient = getEodEmail();
   const subject = `Dom-Optom end of day — ${today} (${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel})`;
   const intro = `End-of-day submission for ${today}.\n${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel}.`;
 
@@ -6266,8 +6278,22 @@ async function eodSubmit(visits, mileage) {
   //    share sheet — the user picks Mail/Messages/etc. and the JSON travels
   //    as a real attachment with no size cap. Desktop Safari and old browsers
   //    fall through to mailto.
+  //
+  // The share sheet cannot pre-fill the Mail To: field (iOS limitation), so
+  // we copy the recipient address to the clipboard before opening the sheet.
+  // The user just taps the To: field and pastes.
   let sharedOk = false;
   let sharedAttempted = false;
+  let clipboardOk = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(recipient);
+      clipboardOk = true;
+    }
+  } catch (e) {
+    // Clipboard write can fail (no permission, http context, etc.) — not fatal.
+    console.warn('Clipboard copy failed:', e);
+  }
   try {
     const file = new File([json], filename, { type: 'application/json' });
     if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
@@ -6275,10 +6301,11 @@ async function eodSubmit(visits, mileage) {
       // The share sheet must be opened from a user gesture. The confirm-modal
       // button click is the gesture; this async call still counts on iOS
       // because the click handler is the same task as this promise.
+      const shareText = `Send to: ${recipient}${clipboardOk ? ' (already copied to clipboard — paste into To:)' : ''}\n\n${intro}\nThe JSON file is attached.`;
       await navigator.share({
         files: [file],
         title: subject,
-        text: `${intro}\nThe JSON file is attached.`,
+        text: shareText,
       });
       sharedOk = true;
     }
@@ -6314,7 +6341,7 @@ async function eodSubmit(visits, mileage) {
     }
     try {
       const shortBody = `${intro}\n\nThe file ${filename} was just downloaded to your device — please attach it to this email.`;
-      window.location.href = `mailto:${EOD_EMAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shortBody)}`;
+      window.location.href = `mailto:${getEodEmail()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shortBody)}`;
     } catch (e) {
       console.error('mailto failed:', e);
       toast('Could not open mail app. JSON has been downloaded.', 'error');
@@ -6354,7 +6381,8 @@ async function eodSubmit(visits, mileage) {
   if (removed > 0) parts.push(`${removed} visit${removed === 1 ? '' : 's'}`);
   if (removedMileage > 0) parts.push(`${removedMileage} mileage entr${removedMileage === 1 ? 'y' : 'ies'}`);
   const summary = parts.length > 0 ? parts.join(' and ') : 'no records';
-  toast(`Day ended. ${summary} exported and cleared.`, 'success');
+  const clipNote = (sharedOk && clipboardOk) ? ` Email address copied — paste into Mail's To: field.` : '';
+  toast(`Day ended. ${summary} exported and cleared.${clipNote}`, 'success');
   // Re-render to reflect the cleared state.
   renderEndOfDay();
 }
@@ -6732,6 +6760,21 @@ function renderSettings() {
       <div class="card mb-4">
         <div class="card-head">
           <div>
+            <h3 class="card-title">End of day submission</h3>
+            <div class="card-sub">Where the end-of-day JSON export is emailed.</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <label class="label" for="set-eod-email">Recipient email address</label>
+          <input id="set-eod-email" class="input" type="email" autocomplete="email" inputmode="email"
+                 placeholder="${escapeAttr(EOD_EMAIL_DEFAULT)}" value="${escapeAttr(prefs.eodEmailTo)}" />
+          <div class="help mt-1">Currently sending to <strong>${escapeHTML(getEodEmail())}</strong>. Leave blank to use the default. The iOS share sheet can't pre-fill Mail's To: field — the address is copied to your clipboard on submit so you can paste it.</div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-head">
+          <div>
             <h3 class="card-title">Home location</h3>
             <div class="card-sub">Sets the start point for each day. The route includes a Home → first stop leg.</div>
           </div>
@@ -7101,10 +7144,12 @@ function renderSettings() {
         }
       }
     }
+    const eodEmailRaw = (document.getElementById('set-eod-email')?.value || '').trim();
     setPrefs({
       tomtomKey, bufferMode, bufferPct, arrivalCushionMin,
       homeAddress, homeLat, homeLng, homeDisplay, departFromHome,
       assumedFinalVisitMin,
+      eodEmailTo: eodEmailRaw,
       targets,
     });
     // Invalidate cached schedule so new cushion / home settings take effect.
