@@ -5980,11 +5980,19 @@ function eodTodaysVisits() {
   });
 }
 
-// A visit is "unactioned" if either the Referral Required or Additional Action
-// Required toggle is on. We surface these so they can be reviewed before the
-// day's records are submitted and wiped.
+// A visit is "unactioned" if a Referral was marked Required but not yet ticked
+// as Actioned, OR an Additional Action was marked Required but not yet ticked
+// as Actioned. The form stores these as:
+//   p.clinicalReferral          (referral required toggle)
+//   p.referralActioned          (referral actioned sub-toggle)
+//   p.additionalActionRequired  (action required toggle)
+//   p.additionalActionActioned  (action actioned sub-toggle)
+// We surface unactioned items so they can be reviewed before the day's records
+// are submitted and wiped.
 function eodIsUnactioned(p) {
-  return !!(p.referralRequired || p.additionalActionRequired);
+  const refOutstanding = !!p.clinicalReferral && !p.referralActioned;
+  const actOutstanding = !!p.additionalActionRequired && !p.additionalActionActioned;
+  return refOutstanding || actOutstanding;
 }
 
 function renderEndOfDay() {
@@ -6012,8 +6020,8 @@ function renderEndOfDay() {
     : `<div style="display: flex; flex-direction: column; gap: 8px;">
          ${unactioned.map(p => {
            const flags = [];
-           if (p.referralRequired) flags.push('<span class="badge danger">Referral</span>');
-           if (p.additionalActionRequired) flags.push('<span class="badge warning">Action</span>');
+           if (p.clinicalReferral && !p.referralActioned) flags.push('<span class="badge danger">Referral</span>');
+           if (p.additionalActionRequired && !p.additionalActionActioned) flags.push('<span class="badge warning">Action</span>');
            const notesSnippet = p.notes ? escapeHTML(p.notes.slice(0, 80)) + (p.notes.length > 80 ? '…' : '') : '<span style="color: var(--text-muted);">No notes</span>';
            return `
              <div class="card" style="padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
