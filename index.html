@@ -5995,11 +5995,27 @@ function eodIsUnactioned(p) {
   return refOutstanding || actOutstanding;
 }
 
+// Today's mileage entries for the current user (admin sees everyone's).
+// Each (date, user) pair has at most one combined entry; we return as an array
+// for forward-compat and to make admin-aggregation natural.
+function eodTodaysMileage() {
+  const today = todayISO();
+  const userId = Users.currentUserId;
+  const log = loadMileage();
+  const entries = (log.entries || []).filter(e => {
+    if (e.date !== today) return false;
+    if (Users.isAdmin()) return true;
+    return (e.userId || 'user-optom') === userId;
+  });
+  return entries;
+}
+
 function renderEndOfDay() {
   const root = document.getElementById('route-end-of-day');
   const today = todayISO();
   const todays = eodTodaysVisits();
   const unactioned = todays.filter(eodIsUnactioned);
+  const todaysMileage = eodTodaysMileage();
 
   // Friendly date label, e.g. "Friday, 15 May 2026"
   const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-GB', {
@@ -6010,6 +6026,42 @@ function renderEndOfDay() {
   // the rest of the dashboard so numbers reconcile.
   const totalRevenue = todays.reduce((s, p) => s + patientTotal(p), 0);
   const dispensedCount = todays.filter(patientIsDispensed).length;
+
+  // Mileage totals across today's entries (usually just one entry per user).
+  const totalMiles = todaysMileage.reduce((s, e) => s + (e.miles || 0), 0);
+  const totalDriveMinutes = todaysMileage.reduce((s, e) => s + (e.driveMinutes || 0), 0);
+  const totalMileageStops = todaysMileage.reduce((s, e) => s + (e.stopCount || 0), 0);
+  const fmtDriveTime = (mins) => {
+    if (!mins) return '0 min';
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h > 0 ? `${h} h ${m} min` : `${m} min`;
+  };
+
+  // Mileage card content: empty state, or per-entry summary with leg breakdown.
+  const mileageHTML = todaysMileage.length === 0
+    ? `<div class="empty" style="padding: 24px 16px;">
+         <p style="color: var(--text-muted); margin: 0;">No mileage logged today. Plot a route on the Map tab to record one.</p>
+       </div>`
+    : `<div style="display: flex; flex-direction: column; gap: 10px;">
+         ${todaysMileage.map(e => {
+           const userLabel = Users.isAdmin()
+             ? (Users.byId(e.userId)?.displayName || Users.byId(e.userId)?.username || 'Unknown user')
+             : null;
+           const legCount = (e.legs || []).length;
+           const legSummary = legCount > 0
+             ? `${legCount} leg${legCount === 1 ? '' : 's'} · ${e.stopCount || 0} stop${e.stopCount === 1 ? '' : 's'}${e.homeIncluded ? ' · home out' : ''}${e.returnIncluded ? ' · home return' : ''}`
+             : 'No legs recorded';
+           return `
+             <div class="card" style="padding: 12px 14px;">
+               <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;">
+                 <strong style="font-size: 15px;">${(e.miles || 0).toFixed(2)} miles</strong>
+                 <span style="color: var(--text-muted); font-size: 13px;">${fmtDriveTime(e.driveMinutes || 0)} drive time</span>
+                 ${userLabel ? `<span class="badge" style="margin-left: auto;">${escapeHTML(userLabel)}</span>` : ''}
+               </div>
+               <div style="font-size: 12.5px; color: var(--text-muted);">${legSummary}</div>
+             </div>`;
+         }).join('')}
+       </div>`;
 
   // Unactioned items render with the reason (which toggle is on), the anon ID,
   // and a deep link to open the record in the records page for editing.
@@ -6046,7 +6098,7 @@ function renderEndOfDay() {
         </div>
       </div>
 
-      <div class="row cols-3 mb-3">
+      <div class="row cols-4 mb-3">
         <div class="card"><div class="kpi">
           <div class="kpi-label">Visits today</div>
           <div class="kpi-value">${todays.length}</div>
@@ -6056,6 +6108,11 @@ function renderEndOfDay() {
           <div class="kpi-label">Revenue today</div>
           <div class="kpi-value">£${totalRevenue.toFixed(2)}</div>
           <div class="kpi-hint">Sum of pair prices</div>
+        </div></div>
+        <div class="card"><div class="kpi">
+          <div class="kpi-label">Miles today</div>
+          <div class="kpi-value">${totalMiles.toFixed(1)}</div>
+          <div class="kpi-hint">${fmtDriveTime(totalDriveMinutes)} drive time</div>
         </div></div>
         <div class="card"><div class="kpi">
           <div class="kpi-label">Unactioned</div>
@@ -6076,6 +6133,18 @@ function renderEndOfDay() {
         </div>
       </div>
 
+      <div class="card mb-3">
+        <div class="card-head">
+          <div>
+            <h3 class="card-title">Today's mileage</h3>
+            <div class="card-sub">Recorded from the Map tab. Included in the end-of-day export and cleared on submit.</div>
+          </div>
+        </div>
+        <div class="card-body">
+          ${mileageHTML}
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <div>
@@ -6085,13 +6154,13 @@ function renderEndOfDay() {
         </div>
         <div class="card-body">
           <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <button class="btn btn-primary" id="eod-submit-btn" ${todays.length === 0 ? 'disabled' : ''}>
+            <button class="btn btn-primary" id="eod-submit-btn" ${(todays.length === 0 && todaysMileage.length === 0) ? 'disabled' : ''}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               End day &amp; submit
             </button>
-            ${todays.length === 0
-              ? '<span style="color: var(--text-muted); font-size: 13px;">Nothing to submit — no visits recorded today.</span>'
-              : `<span style="color: var(--text-muted); font-size: 13px;">${todays.length} visit${todays.length === 1 ? '' : 's'} will be exported and removed locally.</span>`}
+            ${(todays.length === 0 && todaysMileage.length === 0)
+              ? '<span style="color: var(--text-muted); font-size: 13px;">Nothing to submit — no visits or mileage recorded today.</span>'
+              : `<span style="color: var(--text-muted); font-size: 13px;">${todays.length} visit${todays.length === 1 ? '' : 's'}${todaysMileage.length > 0 ? ` and ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : ''} will be exported and cleared from this device.</span>`}
           </div>
         </div>
       </div>
@@ -6113,6 +6182,9 @@ function renderEndOfDay() {
             <li>A JSON backup will download to your device.</li>
             <li>Your mail app will open with the JSON addressed to <strong>${escapeHTML(EOD_EMAIL_TO)}</strong>.</li>
             <li>Today's <strong>${todays.length}</strong> visit${todays.length === 1 ? '' : 's'} will be removed from local storage.</li>
+            ${todaysMileage.length > 0
+              ? `<li>Today's mileage (<strong>${totalMiles.toFixed(1)}</strong> mile${totalMiles === 1 ? '' : 's'}, ${fmtDriveTime(totalDriveMinutes)} drive time) will be exported and cleared from this device.</li>`
+              : '<li>No mileage recorded today.</li>'}
           </ul>
           ${unactioned.length > 0
             ? `<div class="badge danger" style="display: block; padding: 8px 10px; margin-bottom: 12px; line-height: 1.4;">Warning: ${unactioned.length} visit${unactioned.length === 1 ? ' has' : 's have'} unactioned referrals or actions. Submitting now will export them as-is.</div>`
@@ -6153,26 +6225,34 @@ function renderEndOfDay() {
   const confirmBtn = document.getElementById('eod-confirm-btn');
   if (confirmBtn) confirmBtn.addEventListener('click', () => {
     closeConfirm();
-    eodSubmit(todays);
+    eodSubmit(todays, todaysMileage);
   });
 }
 
 // Build the export payload, trigger a JSON download, open the mailto, and
 // remove today's visits from storage. Each step is wrapped so a failure in
 // (e.g.) mail compose doesn't block the local cleanup.
-function eodSubmit(visits) {
-  if (!visits || visits.length === 0) {
-    toast('No visits to submit.', 'error');
+function eodSubmit(visits, mileage) {
+  visits = visits || [];
+  mileage = mileage || [];
+  if (visits.length === 0 && mileage.length === 0) {
+    toast('Nothing to submit.', 'error');
     return;
   }
 
   const today = todayISO();
+  const totalMiles = mileage.reduce((s, e) => s + (e.miles || 0), 0);
+  const totalDriveMinutes = mileage.reduce((s, e) => s + (e.driveMinutes || 0), 0);
   const payload = {
     submittedAt: new Date().toISOString(),
     submittedBy: (Users.current() && Users.current().username) || 'unknown',
     visitDate: today,
     visitCount: visits.length,
     visits,
+    mileageCount: mileage.length,
+    totalMiles: Number(totalMiles.toFixed(2)),
+    totalDriveMinutes,
+    mileage,
   };
   const json = JSON.stringify(payload, null, 2);
 
@@ -6197,8 +6277,9 @@ function eodSubmit(visits) {
   //    in some clients), so for larger payloads we drop the JSON in the body but
   //    also remind the user the backup file was downloaded.
   try {
-    const subject = `Dom-Optom end of day — ${today} (${visits.length} visit${visits.length === 1 ? '' : 's'})`;
-    const intro = `End-of-day submission for ${today}.\n${visits.length} visit${visits.length === 1 ? '' : 's'}. JSON backup attached from your downloads folder.\n\n--- JSON ---\n`;
+    const milesLabel = mileage.length > 0 ? `, ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : '';
+    const subject = `Dom-Optom end of day — ${today} (${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel})`;
+    const intro = `End-of-day submission for ${today}.\n${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel}. JSON backup attached from your downloads folder.\n\n--- JSON ---\n`;
     const body = intro + json;
     const mailto = `mailto:${EOD_EMAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     // Some browsers cap mailto URLs around 2000 chars. If we're over that, fall
@@ -6226,7 +6307,28 @@ function eodSubmit(visits) {
   State.save();
   const removed = beforeCount - State.patients.length;
 
-  toast(`Day ended. ${removed} record${removed === 1 ? '' : 's'} exported and cleared.`, 'success');
+  // 4) Clear today's mileage entries for this user. Admin clears all today's
+  //    entries (same scope they saw in the EoD summary). Other days untouched.
+  let removedMileage = 0;
+  try {
+    const mLog = loadMileage();
+    const beforeM = (mLog.entries || []).length;
+    mLog.entries = (mLog.entries || []).filter(e => {
+      if (e.date !== today) return true;
+      if (!Users.isAdmin() && (e.userId || 'user-optom') !== userId) return true;
+      return false;
+    });
+    saveMileage(mLog);
+    removedMileage = beforeM - mLog.entries.length;
+  } catch (e) {
+    console.error('Mileage clear failed:', e);
+  }
+
+  const parts = [];
+  if (removed > 0) parts.push(`${removed} visit${removed === 1 ? '' : 's'}`);
+  if (removedMileage > 0) parts.push(`${removedMileage} mileage entr${removedMileage === 1 ? 'y' : 'ies'}`);
+  const summary = parts.length > 0 ? parts.join(' and ') : 'no records';
+  toast(`Day ended. ${summary} exported and cleared.`, 'success');
   // Re-render to reflect the cleared state.
   renderEndOfDay();
 }
