@@ -3842,6 +3842,7 @@ function getPrefs() {
     assumedFinalVisitMin: DEFAULT_LAST_APPT_DURATION_MIN,
     showBestOf: true,
     eodEmailTo: '',
+    eodEndpointUrl: '',
     targets: { ...DEFAULT_TARGETS },
   };
   try {
@@ -3866,6 +3867,7 @@ function getPrefs() {
         : DEFAULT_LAST_APPT_DURATION_MIN,
       showBestOf: typeof p.showBestOf === 'boolean' ? p.showBestOf : true,
       eodEmailTo: typeof p.eodEmailTo === 'string' ? p.eodEmailTo : '',
+      eodEndpointUrl: typeof p.eodEndpointUrl === 'string' ? p.eodEndpointUrl : '',
       targets: (() => {
         const out = { ...DEFAULT_TARGETS };
         const t = p.targets || {};
@@ -6027,6 +6029,7 @@ function renderEndOfDay() {
   const todays = eodTodaysVisits();
   const unactioned = todays.filter(eodIsUnactioned);
   const todaysMileage = eodTodaysMileage();
+  const directSendOn = !!(getPrefs().eodEndpointUrl || '').trim();
 
   // Friendly date label, e.g. "Friday, 15 May 2026"
   const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-GB', {
@@ -6160,7 +6163,10 @@ function renderEndOfDay() {
         <div class="card-head">
           <div>
             <h3 class="card-title">Submit end of day</h3>
-            <div class="card-sub">Emails today's records to <strong>${escapeHTML(getEodEmail())}</strong> for central storage, then clears them from this device. <span style="color: var(--text-muted);">Change this in <a href="#settings" style="color: var(--accent); text-decoration: underline;">Settings</a>.</span></div>
+            <div class="card-sub">${directSendOn
+              ? `Sends today's records directly to <strong>${escapeHTML(getEodEmail())}</strong>, then clears them from this device.`
+              : `Emails today's records to <strong>${escapeHTML(getEodEmail())}</strong> for central storage, then clears them from this device.`}
+              <span style="color: var(--text-muted);">Change this in <a href="#settings" style="color: var(--accent); text-decoration: underline;">Settings</a>.</span></div>
           </div>
         </div>
         <div class="card-body">
@@ -6190,9 +6196,13 @@ function renderEndOfDay() {
         </div>
         <div class="card-body">
           <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 13.5px; color: var(--text);">
-            <li>The share sheet will open with a JSON file — tap Mail, paste <strong>${escapeHTML(getEodEmail())}</strong> into the To: field, and send.</li>
-            <li>Today's <strong>${todays.length}</strong> visit${todays.length === 1 ? '' : 's'}${todaysMileage.length > 0 ? ` and ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : ''} will be cleared from this device after you send.</li>
-            <li>If you cancel the share sheet, nothing is cleared.</li>
+            ${directSendOn
+              ? `<li>The JSON will be sent directly to <strong>${escapeHTML(getEodEmail())}</strong> — no share sheet, no extra taps.</li>`
+              : `<li>The share sheet will open with a JSON file — tap Mail, paste <strong>${escapeHTML(getEodEmail())}</strong> into the To: field, and send.</li>`}
+            <li>Today's <strong>${todays.length}</strong> visit${todays.length === 1 ? '' : 's'}${todaysMileage.length > 0 ? ` and ${totalMiles.toFixed(1)} mile${totalMiles === 1 ? '' : 's'}` : ''} will be cleared from this device after ${directSendOn ? 'the email sends' : 'you send'}.</li>
+            ${directSendOn
+              ? `<li>If the direct send fails, the share sheet opens as a fallback and nothing is cleared until you send.</li>`
+              : `<li>If you cancel the share sheet, nothing is cleared.</li>`}
           </ul>
           ${unactioned.length > 0
             ? `<div class="badge danger" style="display: block; padding: 8px 10px; margin-bottom: 12px; line-height: 1.4;">Warning: ${unactioned.length} visit${unactioned.length === 1 ? ' has' : 's have'} unactioned referrals or actions. Submitting now will export them as-is.</div>`
@@ -6274,6 +6284,47 @@ async function eodSubmit(visits, mileage) {
   const subject = `Dom-Optom end of day — ${today} (${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel})`;
   const intro = `End-of-day submission for ${today}.\n${visits.length} visit${visits.length === 1 ? '' : 's'}${milesLabel}.`;
 
+  // 0) Direct send via a configured web app endpoint (e.g. Google Apps Script).
+  //    If the user pasted a URL in Settings, POST the JSON straight to it. The
+  //    script on the other end sends the mail from their own account with the
+  //    JSON as a real attachment — no share sheet, no clipboard juggling.
+  //
+  //    We use Content-Type: text/plain to keep the request "simple" so the
+  //    browser doesn't fire a CORS preflight (which Apps Script handles poorly).
+  //    On any failure we toast and fall through to the share-sheet path.
+  const endpointUrl = (getPrefs().eodEndpointUrl || '').trim();
+  let directSent = false;
+  if (endpointUrl) {
+    try {
+      toast('Sending end of day…', 'info');
+      const resp = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify({
+          to: recipient,
+          subject,
+          body: intro,
+          filename,
+          data: payload,
+        }),
+        redirect: 'follow',
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Apps Script returns JSON {ok:true} on success.
+      let result = null;
+      try { result = await resp.json(); } catch { /* tolerate non-JSON */ }
+      if (result && result.ok === false) {
+        throw new Error(result.error || 'Endpoint reported failure.');
+      }
+      directSent = true;
+      toast(`Email sent to ${recipient}.`, 'success');
+    } catch (err) {
+      console.error('Direct send failed:', err);
+      toast(`Direct send failed (${err && err.message ? err.message : 'network error'}) — falling back to share sheet.`, 'error');
+      // fall through to share-sheet path below
+    }
+  }
+
   // 1) Try the Web Share API with a File attachment. This is the iOS-native
   //    share sheet — the user picks Mail/Messages/etc. and the JSON travels
   //    as a real attachment with no size cap. Desktop Safari and old browsers
@@ -6285,8 +6336,13 @@ async function eodSubmit(visits, mileage) {
   let sharedOk = false;
   let sharedAttempted = false;
   let clipboardOk = false;
+  if (directSent) {
+    // Skip the share-sheet/clipboard/mailto path entirely — mail already sent.
+    sharedAttempted = true;
+    sharedOk = true;
+  }
   try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (!directSent && navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(recipient);
       clipboardOk = true;
     }
@@ -6295,6 +6351,7 @@ async function eodSubmit(visits, mileage) {
     console.warn('Clipboard copy failed:', e);
   }
   try {
+    if (directSent) throw new Error('__skip_share__');
     const file = new File([json], filename, { type: 'application/json' });
     if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
       sharedAttempted = true;
@@ -6310,15 +6367,18 @@ async function eodSubmit(visits, mileage) {
       sharedOk = true;
     }
   } catch (e) {
-    // AbortError = user cancelled the share sheet. Treat as a successful
-    // "shown the sheet" so we don't fall back to mailto + download.
-    if (e && e.name === 'AbortError') {
+    if (e && e.message === '__skip_share__') {
+      // direct send already completed — nothing more to do in the share path
+    } else if (e && e.name === 'AbortError') {
+      // User cancelled the share sheet. Treat as a successful "shown the
+      // sheet" so we don't fall back to mailto + download — and preserve data.
       sharedAttempted = true;
       sharedOk = false;
       toast('Share cancelled — records not yet cleared.', 'error');
       return;
+    } else {
+      console.error('Web Share failed:', e);
     }
-    console.error('Web Share failed:', e);
   }
 
   // 2) If we couldn't share (desktop, old browser, share denied), fall back to
@@ -6381,8 +6441,9 @@ async function eodSubmit(visits, mileage) {
   if (removed > 0) parts.push(`${removed} visit${removed === 1 ? '' : 's'}`);
   if (removedMileage > 0) parts.push(`${removedMileage} mileage entr${removedMileage === 1 ? 'y' : 'ies'}`);
   const summary = parts.length > 0 ? parts.join(' and ') : 'no records';
-  const clipNote = (sharedOk && clipboardOk) ? ` Email address copied — paste into Mail's To: field.` : '';
-  toast(`Day ended. ${summary} exported and cleared.${clipNote}`, 'success');
+  const clipNote = (!directSent && sharedOk && clipboardOk) ? ` Email address copied — paste into Mail's To: field.` : '';
+  const sentNote = directSent ? ` Email already sent.` : '';
+  toast(`Day ended. ${summary} exported and cleared.${sentNote}${clipNote}`, 'success');
   // Re-render to reflect the cleared state.
   renderEndOfDay();
 }
@@ -6768,7 +6829,17 @@ function renderSettings() {
           <label class="label" for="set-eod-email">Recipient email address</label>
           <input id="set-eod-email" class="input" type="email" autocomplete="email" inputmode="email"
                  placeholder="${escapeAttr(EOD_EMAIL_DEFAULT)}" value="${escapeAttr(prefs.eodEmailTo)}" />
-          <div class="help mt-1">Currently sending to <strong>${escapeHTML(getEodEmail())}</strong>. Leave blank to use the default. The iOS share sheet can't pre-fill Mail's To: field — the address is copied to your clipboard on submit so you can paste it.</div>
+          <div class="help mt-1">Currently sending to <strong>${escapeHTML(getEodEmail())}</strong>. Leave blank to use the default.</div>
+
+          <label class="label mt-3" for="set-eod-endpoint">Web app endpoint URL <span style="color: var(--text-muted); font-weight: 400;">(optional, recommended)</span></label>
+          <input id="set-eod-endpoint" class="input" type="url" autocomplete="off" inputmode="url" spellcheck="false"
+                 placeholder="https://script.google.com/macros/s/.../exec" value="${escapeAttr(prefs.eodEndpointUrl)}" />
+          <div class="help mt-1">
+            ${prefs.eodEndpointUrl
+              ? `<span style="color: var(--accent);">✓ Direct send enabled.</span> End-of-day submissions POST straight to this URL — no share sheet needed.`
+              : `Paste a Google Apps Script web app URL to send the JSON directly from this page (no share sheet, no copy/paste). One-time setup takes 5 minutes — see the <code>apps-script.gs</code> file in the repo for the script and step-by-step deployment guide.`}
+            If left blank, submissions fall back to the iOS share sheet.
+          </div>
         </div>
       </div>
 
@@ -7145,11 +7216,13 @@ function renderSettings() {
       }
     }
     const eodEmailRaw = (document.getElementById('set-eod-email')?.value || '').trim();
+    const eodEndpointRaw = (document.getElementById('set-eod-endpoint')?.value || '').trim();
     setPrefs({
       tomtomKey, bufferMode, bufferPct, arrivalCushionMin,
       homeAddress, homeLat, homeLng, homeDisplay, departFromHome,
       assumedFinalVisitMin,
       eodEmailTo: eodEmailRaw,
+      eodEndpointUrl: eodEndpointRaw,
       targets,
     });
     // Invalidate cached schedule so new cushion / home settings take effect.
