@@ -567,6 +567,30 @@
   .reason-row .reason-text { flex: 1; font-size: 13px; }
   .reason-row .reason-edit-input { flex: 1; }
 
+  /* Users page list */
+  .users-list { display: flex; flex-direction: column; }
+  .users-row {
+    display: flex; gap: 10px; align-items: center;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+  }
+  .users-row:last-child { border-bottom: 0; }
+  .users-row-main {
+    flex: 1; min-width: 0;
+    text-align: left; background: transparent; border: 0; padding: 4px 0; cursor: pointer;
+    color: inherit;
+    display: flex; flex-direction: column; gap: 2px;
+    border-radius: 6px;
+  }
+  .users-row-main:hover { background: var(--surface-2, rgba(0,0,0,0.03)); padding-left: 8px; padding-right: 8px; }
+  .users-row-name { font-weight: 600; font-size: 14px; }
+  .users-row-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+  .users-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  @media (max-width: 640px) {
+    .users-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
+    .users-row-actions { width: 100%; }
+    .users-row-actions .btn { flex: 1; min-height: 38px; }
+  }
+
   /* Compact New-Patient layout */
   .np-compact .card-head.compact { padding: 10px 14px; }
   .np-compact .card-body.compact { padding: 10px 14px 12px; }
@@ -1196,6 +1220,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
       </button>
+      <button class="nav-item" data-route="users" data-admin-only>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Users</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost" id="logout-btn" style="justify-content: flex-start;">
@@ -1215,6 +1243,7 @@
     <div id="route-mileage" class="route hidden"></div>
     <div id="route-data" class="route hidden"></div>
     <div id="route-settings" class="route hidden"></div>
+    <div id="route-users" class="route hidden"></div>
   </main>
 
   <!-- Mobile bottom tab bar (≤ 640px only via CSS) -->
@@ -1256,6 +1285,10 @@
     <button class="mobile-more-item" data-mobile-route="settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span>Settings</span>
+    </button>
+    <button class="mobile-more-item" data-mobile-route="users" data-admin-only>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Users</span>
     </button>
     <button class="mobile-more-item" id="mobile-logout">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1867,7 +1900,8 @@ function applyUserToSidebar() {
     sub.textContent = u ? `Signed in as ${u.displayName || u.username}` : 'Visit analytics';
   }
   // Toggle admin-only nav items by hiding rather than removing (so nav state survives re-renders).
-  document.querySelectorAll('.nav-item[data-admin-only]').forEach(el => {
+  // Covers both the desktop sidebar items and the mobile More-sheet items.
+  document.querySelectorAll('.nav-item[data-admin-only], .mobile-more-item[data-admin-only]').forEach(el => {
     el.style.display = (u && u.role === 'admin') ? '' : 'none';
   });
 }
@@ -1891,7 +1925,7 @@ document.getElementById('logout-btn').addEventListener('click', logout);
 /* ============== Routing (hash) ============== */
 function currentRoute() {
   const h = (location.hash || '#map').slice(1);
-  if (['dashboard', 'new', 'map', 'daily-input', 'records', 'mileage', 'data', 'settings', 'end-of-day'].includes(h)) return h;
+  if (['dashboard', 'new', 'map', 'daily-input', 'records', 'mileage', 'data', 'settings', 'end-of-day', 'users'].includes(h)) return h;
   return 'map';
 }
 function navigate(route) {
@@ -1923,6 +1957,7 @@ function navigate(route) {
   else if (route === 'data') renderData();
   else if (route === 'settings') renderSettings();
   else if (route === 'end-of-day') renderEndOfDay();
+  else if (route === 'users') renderUsers();
   if (location.hash !== '#' + route) location.hash = route;
 }
 window.addEventListener('hashchange', () => navigate(currentRoute()));
@@ -3846,8 +3881,22 @@ function periodicTargetFor(targets, key, period) {
   }
   return null;
 }
-function getPrefs() {
-  const fallback = {
+/* ============================================================================
+ * Preferences (per-user)
+ *
+ * Storage shape (under DOMOPTOM_PREFS_V1):
+ *   { __schema: 2, byUserId: { [userId]: <prefsBlob> } }
+ *
+ * Older installs had a single flat blob shared across the device. On first
+ * read we detect the legacy shape and migrate it into the *current* user's
+ * slot AND into the admin's slot (so the admin keeps the same starting
+ * defaults, but each optom from there on edits their own).
+ *
+ * getPrefs() / setPrefs() default to the current user; pass an explicit
+ * userId to read or edit another user's prefs (admin Users page).
+ * ============================================================================ */
+function __prefsFallback() {
+  return {
     tomtomKey: '', bufferMode: 'smart', bufferPct: 20, arrivalCushionMin: 5,
     homeAddress: '', homeLat: null, homeLng: null, homeDisplay: '',
     departFromHome: '', includeHomeOnMap: true, showRouteOnMap: false,
@@ -3858,49 +3907,96 @@ function getPrefs() {
     eodEndpointUrl: '',
     targets: { ...DEFAULT_TARGETS },
   };
-  try {
-    const p = JSON.parse(Store.getItem(PREFS_KEY) || '{}');
-    return {
-      tomtomKey: p.tomtomKey || '',
-      bufferMode: p.bufferMode || 'smart', // 'smart' | 'fixed'
-      bufferPct: typeof p.bufferPct === 'number' ? p.bufferPct : 20,
-      arrivalCushionMin: typeof p.arrivalCushionMin === 'number' ? p.arrivalCushionMin : 5,
-      homeAddress: p.homeAddress || '',
-      homeLat: typeof p.homeLat === 'number' ? p.homeLat : null,
-      homeLng: typeof p.homeLng === 'number' ? p.homeLng : null,
-      homeDisplay: p.homeDisplay || '',
-      departFromHome: p.departFromHome || '',
-      includeHomeOnMap: typeof p.includeHomeOnMap === 'boolean' ? p.includeHomeOnMap : true,
-      showRouteOnMap: typeof p.showRouteOnMap === 'boolean' ? p.showRouteOnMap : false,
-      notDispensedReasons: Array.isArray(p.notDispensedReasons) && p.notDispensedReasons.length > 0
-        ? p.notDispensedReasons.slice()
-        : DEFAULT_NON_DISPENSE_REASONS.slice(),
-      assumedFinalVisitMin: (typeof p.assumedFinalVisitMin === 'number' && p.assumedFinalVisitMin > 0)
-        ? p.assumedFinalVisitMin
-        : DEFAULT_LAST_APPT_DURATION_MIN,
-      showBestOf: typeof p.showBestOf === 'boolean' ? p.showBestOf : true,
-      eodEmailTo: typeof p.eodEmailTo === 'string' ? p.eodEmailTo : '',
-      eodEndpointUrl: typeof p.eodEndpointUrl === 'string' ? p.eodEndpointUrl : '',
-      targets: (() => {
-        const out = { ...DEFAULT_TARGETS };
-        const t = p.targets || {};
-        // Pull through any finite numeric target: monthly baselines AND per-period
-        // overrides like `revenue_daily`, `pairsDispensed_weekly`, etc.
-        for (const k of Object.keys(t)) {
-          const v = t[k];
-          if (typeof v === 'number' && Number.isFinite(v) && v >= 0) out[k] = v;
-        }
-        // Drop legacy `referrals` target if present — it has been removed.
-        delete out.referrals;
-        return out;
-      })(),
-    };
-  } catch { return fallback; }
 }
-function setPrefs(patch) {
-  const cur = getPrefs();
+function __normalizePrefs(p) {
+  p = p || {};
+  return {
+    tomtomKey: p.tomtomKey || '',
+    bufferMode: p.bufferMode || 'smart', // 'smart' | 'fixed'
+    bufferPct: typeof p.bufferPct === 'number' ? p.bufferPct : 20,
+    arrivalCushionMin: typeof p.arrivalCushionMin === 'number' ? p.arrivalCushionMin : 5,
+    homeAddress: p.homeAddress || '',
+    homeLat: typeof p.homeLat === 'number' ? p.homeLat : null,
+    homeLng: typeof p.homeLng === 'number' ? p.homeLng : null,
+    homeDisplay: p.homeDisplay || '',
+    departFromHome: p.departFromHome || '',
+    includeHomeOnMap: typeof p.includeHomeOnMap === 'boolean' ? p.includeHomeOnMap : true,
+    showRouteOnMap: typeof p.showRouteOnMap === 'boolean' ? p.showRouteOnMap : false,
+    notDispensedReasons: Array.isArray(p.notDispensedReasons) && p.notDispensedReasons.length > 0
+      ? p.notDispensedReasons.slice()
+      : DEFAULT_NON_DISPENSE_REASONS.slice(),
+    assumedFinalVisitMin: (typeof p.assumedFinalVisitMin === 'number' && p.assumedFinalVisitMin > 0)
+      ? p.assumedFinalVisitMin
+      : DEFAULT_LAST_APPT_DURATION_MIN,
+    showBestOf: typeof p.showBestOf === 'boolean' ? p.showBestOf : true,
+    eodEmailTo: typeof p.eodEmailTo === 'string' ? p.eodEmailTo : '',
+    eodEndpointUrl: typeof p.eodEndpointUrl === 'string' ? p.eodEndpointUrl : '',
+    targets: (() => {
+      const out = { ...DEFAULT_TARGETS };
+      const t = (p && p.targets) || {};
+      for (const k of Object.keys(t)) {
+        const v = t[k];
+        if (typeof v === 'number' && Number.isFinite(v) && v >= 0) out[k] = v;
+      }
+      // Drop legacy `referrals` target if present — it has been removed.
+      delete out.referrals;
+      return out;
+    })(),
+  };
+}
+// Read the full {byUserId} blob, performing one-time migration from the
+// legacy flat shape on the way through.
+function __readPrefsBlob() {
+  let raw;
+  try { raw = JSON.parse(Store.getItem(PREFS_KEY) || '{}'); } catch { raw = {}; }
+  if (raw && raw.__schema === 2 && raw.byUserId && typeof raw.byUserId === 'object') {
+    return raw;
+  }
+  // Legacy shape (flat). Migrate into current user's slot AND admin's slot,
+  // so the admin inherits the same starting defaults (home, EoD email, etc.).
+  const cur = (typeof Users !== 'undefined' && Users.current && Users.current()) || null;
+  const curId = (cur && cur.id) || 'user-optom';
+  const adminId = 'user-admin';
+  const migrated = { __schema: 2, byUserId: {} };
+  // Only treat raw as a legacy prefs blob if it has at least one known field.
+  const looksLegacy = raw && (
+    'tomtomKey' in raw || 'homeAddress' in raw || 'eodEmailTo' in raw ||
+    'eodEndpointUrl' in raw || 'targets' in raw
+  );
+  if (looksLegacy) {
+    migrated.byUserId[curId] = __normalizePrefs(raw);
+    if (curId !== adminId) migrated.byUserId[adminId] = __normalizePrefs(raw);
+  }
+  // Persist the migrated shape so this only runs once.
+  try { Store.setItem(PREFS_KEY, JSON.stringify(migrated)); } catch {}
+  return migrated;
+}
+function __writePrefsBlob(blob) {
+  blob.__schema = 2;
+  blob.byUserId = blob.byUserId || {};
+  try { Store.setItem(PREFS_KEY, JSON.stringify(blob)); } catch {}
+}
+// Read prefs for a user (default: current). Returns a fully-populated object
+// with sensible defaults filled in, even for users who have never saved prefs.
+function getPrefs(userId) {
+  const blob = __readPrefsBlob();
+  if (!userId) {
+    const cur = (typeof Users !== 'undefined' && Users.current && Users.current()) || null;
+    userId = (cur && cur.id) || 'user-optom';
+  }
+  return __normalizePrefs(blob.byUserId[userId] || {});
+}
+// Patch prefs for a user (default: current). Returns the post-merge prefs.
+function setPrefs(patch, userId) {
+  const blob = __readPrefsBlob();
+  if (!userId) {
+    const cur = (typeof Users !== 'undefined' && Users.current && Users.current()) || null;
+    userId = (cur && cur.id) || 'user-optom';
+  }
+  const cur = __normalizePrefs(blob.byUserId[userId] || {});
   const next = { ...cur, ...patch };
-  try { Store.setItem(PREFS_KEY, JSON.stringify(next)); } catch {}
+  blob.byUserId[userId] = next;
+  __writePrefsBlob(blob);
   return next;
 }
 
@@ -7365,6 +7461,461 @@ function renderSettings() {
         }
       }
       toast('Targets reset — click Save settings to keep them.', 'success');
+    });
+  }
+}
+
+/* ============================================================================
+ * USERS (admin only)
+ * --------------------------------------------------------------------------
+ * Admin-facing page for managing optoms (the practising users). Each optom
+ * has their own preferences (home address, TomTom key, EoD email, targets)
+ * stored under PREFS_KEY -> byUserId. The admin can:
+ *   - Change the admin password
+ *   - Add a new optom
+ *   - Rename / reset password / delete any optom
+ *   - Edit each optom's preferences
+ *   - Safely delete: if the optom has records, choose to reassign or orphan.
+ * ============================================================================ */
+function renderUsers() {
+  const root = document.getElementById('route-users');
+  if (!root) return;
+  // Hard guard: only the admin can see this page. If a non-admin somehow
+  // routes here (manual hash), bounce them to the dashboard / patient and
+  // clear the page contents so nothing admin-only flashes on screen.
+  if (!Users.isAdmin()) {
+    root.innerHTML = '';
+    const safe = window.matchMedia('(max-width: 820px)').matches ? 'new' : 'dashboard';
+    // navigate() will swap the visible route and update the hash.
+    setTimeout(() => navigate(safe), 0);
+    return;
+  }
+
+  // ---- Helpers (closed-over) ----
+  function countRecordsFor(uid) {
+    return State.patients.filter(p => (p.userId || 'user-optom') === uid).length;
+  }
+  function countMileageFor(uid) {
+    try {
+      const log = loadMileage();
+      return (log.entries || []).filter(e => (e.userId || 'user-optom') === uid).length;
+    } catch { return 0; }
+  }
+  function reassignAllFor(fromId, toId) {
+    // Re-stamp every patient and mileage entry from one userId to another.
+    let pChanged = false;
+    for (const p of State.patients) {
+      if ((p.userId || 'user-optom') === fromId) { p.userId = toId; pChanged = true; }
+    }
+    if (pChanged) State.save();
+    try {
+      const log = loadMileage();
+      let mChanged = false;
+      for (const e of (log.entries || [])) {
+        if ((e.userId || 'user-optom') === fromId) { e.userId = toId; mChanged = true; }
+      }
+      if (mChanged) saveMileage(log);
+    } catch {}
+  }
+  function deletePrefsFor(uid) {
+    // Remove this user's prefs slot so their settings don't linger after deletion.
+    try {
+      const blob = __readPrefsBlob();
+      if (blob && blob.byUserId && blob.byUserId[uid]) {
+        delete blob.byUserId[uid];
+        __writePrefsBlob(blob);
+      }
+    } catch {}
+  }
+
+  // ---- Page shell ----
+  const admin = Users.current();
+  const optoms = Users.optomUsers().slice().sort((a, b) =>
+    (a.displayName || a.username).localeCompare(b.displayName || b.username)
+  );
+
+  root.innerHTML = `
+    <div class="page" style="max-width: 820px;">
+      <div class="page-head">
+        <div>
+          <h1>Users</h1>
+          <p>Manage optom accounts and per-user preferences. Only the admin can see this page.</p>
+        </div>
+      </div>
+
+      <!-- Admin self-care: change own password -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <div>
+            <h3 class="card-title">Change admin password</h3>
+            <div class="card-sub">Signed in as <strong>${escapeHTML(admin.username)}</strong>. Choose a new password for this account.</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row cols-2">
+            <div>
+              <label class="label" for="admin-pw-new">New password</label>
+              <input id="admin-pw-new" class="input" type="password" autocomplete="new-password" placeholder="At least 3 characters" />
+            </div>
+            <div>
+              <label class="label" for="admin-pw-confirm">Confirm new password</label>
+              <input id="admin-pw-confirm" class="input" type="password" autocomplete="new-password" placeholder="Re-type the new password" />
+            </div>
+          </div>
+          <div class="flex gap-2 mt-3" style="align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-primary" id="admin-pw-save">Update password</button>
+            <span class="help" id="admin-pw-status" style="margin: 0;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optoms list + add button -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <div>
+            <h3 class="card-title">Optoms</h3>
+            <div class="card-sub">${optoms.length} optom${optoms.length === 1 ? '' : 's'}. Tap an optom to edit their preferences.</div>
+          </div>
+          <button class="btn btn-primary" id="users-add-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add optom
+          </button>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          ${optoms.length === 0 ? `
+            <div class="help" style="padding: 18px; margin: 0;">No optoms yet. Click <strong>Add optom</strong> to create one.</div>
+          ` : `
+            <div class="users-list">
+              ${optoms.map(u => {
+                const recs = countRecordsFor(u.id);
+                const miles = countMileageFor(u.id);
+                return `
+                  <div class="users-row" data-user-row="${escapeAttr(u.id)}">
+                    <button class="users-row-main" data-user-edit="${escapeAttr(u.id)}" type="button" aria-label="Edit ${escapeAttr(u.displayName || u.username)}">
+                      <div class="users-row-name">${escapeHTML(u.displayName || u.username)}</div>
+                      <div class="users-row-meta">
+                        <span class="users-row-user">@${escapeHTML(u.username)}</span>
+                        <span class="users-row-counts">${recs} record${recs === 1 ? '' : 's'} · ${miles} mileage</span>
+                      </div>
+                    </button>
+                    <div class="users-row-actions">
+                      <button class="btn btn-sm" data-user-reset="${escapeAttr(u.id)}" type="button" title="Reset password">Reset password</button>
+                      <button class="btn btn-sm" data-user-rename="${escapeAttr(u.id)}" type="button" title="Rename / change display name">Rename</button>
+                      <button class="btn btn-sm btn-danger" data-user-delete="${escapeAttr(u.id)}" type="button" title="Delete this optom">Delete</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      </div>
+
+      <div class="help" style="max-width: 100%;">
+        Tip: each optom's preferences (home address, TomTom key, end-of-day email, KPI targets) are kept separate. When you tap an optom you'll see exactly what they see in their own Settings.
+      </div>
+    </div>
+  `;
+
+  // ---- Wire up: admin password ----
+  document.getElementById('admin-pw-save').addEventListener('click', () => {
+    const a = document.getElementById('admin-pw-new').value;
+    const b = document.getElementById('admin-pw-confirm').value;
+    const status = document.getElementById('admin-pw-status');
+    status.textContent = '';
+    if (!a || a.length < 3) { status.textContent = 'Password must be at least 3 characters.'; status.style.color = 'var(--danger)'; return; }
+    if (a !== b) { status.textContent = "Passwords don't match."; status.style.color = 'var(--danger)'; return; }
+    const res = Users.update(admin.id, { password: a });
+    if (!res.ok) { status.textContent = res.error || 'Could not update password.'; status.style.color = 'var(--danger)'; return; }
+    document.getElementById('admin-pw-new').value = '';
+    document.getElementById('admin-pw-confirm').value = '';
+    status.textContent = 'Updated. Use the new password next time you sign in.';
+    status.style.color = 'var(--accent)';
+    setTimeout(() => { status.textContent = ''; }, 4000);
+    toast('Admin password updated', 'success');
+  });
+
+  // ---- Wire up: add optom ----
+  document.getElementById('users-add-btn').addEventListener('click', openAddOptomModal);
+
+  // ---- Wire up: per-row actions ----
+  root.querySelectorAll('[data-user-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openEditPrefsModal(btn.dataset.userEdit));
+  });
+  root.querySelectorAll('[data-user-reset]').forEach(btn => {
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); openResetPasswordModal(btn.dataset.userReset); });
+  });
+  root.querySelectorAll('[data-user-rename]').forEach(btn => {
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); openRenameModal(btn.dataset.userRename); });
+  });
+  root.querySelectorAll('[data-user-delete]').forEach(btn => {
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); openDeleteModal(btn.dataset.userDelete); });
+  });
+
+  // =====================================================================
+  // Modal helpers (closed over renderUsers' helpers above)
+  // =====================================================================
+  function openModal(innerHTML, opts) {
+    opts = opts || {};
+    const back = document.createElement('div');
+    back.className = 'modal-backdrop';
+    back.style.display = 'flex';
+    back.style.alignItems = 'center';
+    back.style.justifyContent = 'center';
+    back.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" style="max-width: ${opts.width || '520px'}; width: 100%;">${innerHTML}</div>`;
+    document.body.appendChild(back);
+    const close = () => {
+      try { back.remove(); } catch {}
+      document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    back.addEventListener('click', (ev) => { if (ev.target === back) close(); });
+    back.querySelectorAll('[data-modal-close]').forEach(el => el.addEventListener('click', close));
+    return { back, close };
+  }
+
+  function modalHead(title, subtitle) {
+    return `
+      <div class="modal-head">
+        <div>
+          <h3 style="margin: 0; font-size: 16px;">${escapeHTML(title)}</h3>
+          ${subtitle ? `<div class="help" style="margin: 4px 0 0;">${escapeHTML(subtitle)}</div>` : ''}
+        </div>
+        <button class="btn btn-ghost btn-sm" data-modal-close title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  // ----- Add optom -----
+  function openAddOptomModal() {
+    const { close } = openModal(`
+      ${modalHead('Add a new optom', 'Create a login for another optom. They can change their own password later.')}
+      <div class="modal-body" style="padding: 18px;">
+        <label class="label" for="new-optom-display">Display name</label>
+        <input id="new-optom-display" class="input" placeholder="e.g. Dr Sarah Chen" autocomplete="off" />
+        <label class="label mt-3" for="new-optom-username">Username</label>
+        <input id="new-optom-username" class="input" placeholder="lowercase, 3–20 chars (a–z, 0–9, _ -)" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <label class="label mt-3" for="new-optom-password">Password</label>
+        <input id="new-optom-password" class="input" type="text" placeholder="At least 3 characters" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <div class="help mt-1">They can change this from their own Settings after they sign in.</div>
+        <div class="flex gap-2 mt-3" style="justify-content: flex-end; flex-wrap: wrap;">
+          <button class="btn" data-modal-close type="button">Cancel</button>
+          <button class="btn btn-primary" id="new-optom-save" type="button">Create optom</button>
+        </div>
+        <div class="help mt-2" id="new-optom-status" style="min-height: 1em;"></div>
+      </div>
+    `);
+    document.getElementById('new-optom-username').focus();
+    document.getElementById('new-optom-save').addEventListener('click', () => {
+      const display = document.getElementById('new-optom-display').value.trim();
+      const username = document.getElementById('new-optom-username').value.trim();
+      const password = document.getElementById('new-optom-password').value;
+      const status = document.getElementById('new-optom-status');
+      const res = Users.add({ username, password, displayName: display });
+      if (!res.ok) {
+        status.textContent = res.error;
+        status.style.color = 'var(--danger)';
+        return;
+      }
+      toast(`Added ${res.user.displayName}`, 'success');
+      close();
+      renderUsers();
+    });
+  }
+
+  // ----- Reset password (for any optom) -----
+  function openResetPasswordModal(userId) {
+    const u = Users.byId(userId);
+    if (!u) return;
+    const { close } = openModal(`
+      ${modalHead(`Reset password for ${u.displayName || u.username}`, `Set a new password for @${u.username}. Tell them in person — it's not emailed anywhere.`)}
+      <div class="modal-body" style="padding: 18px;">
+        <label class="label" for="reset-pw-new">New password</label>
+        <input id="reset-pw-new" class="input" type="text" placeholder="At least 3 characters" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <div class="flex gap-2 mt-3" style="justify-content: flex-end; flex-wrap: wrap;">
+          <button class="btn" data-modal-close type="button">Cancel</button>
+          <button class="btn btn-primary" id="reset-pw-save" type="button">Reset password</button>
+        </div>
+        <div class="help mt-2" id="reset-pw-status" style="min-height: 1em;"></div>
+      </div>
+    `);
+    document.getElementById('reset-pw-new').focus();
+    document.getElementById('reset-pw-save').addEventListener('click', () => {
+      const pw = document.getElementById('reset-pw-new').value;
+      const status = document.getElementById('reset-pw-status');
+      const res = Users.update(userId, { password: pw });
+      if (!res.ok) { status.textContent = res.error; status.style.color = 'var(--danger)'; return; }
+      toast(`Password reset for ${u.displayName || u.username}`, 'success');
+      close();
+    });
+  }
+
+  // ----- Rename / change display name -----
+  function openRenameModal(userId) {
+    const u = Users.byId(userId);
+    if (!u) return;
+    const { close } = openModal(`
+      ${modalHead('Rename optom', `Change display name or username for @${u.username}.`)}
+      <div class="modal-body" style="padding: 18px;">
+        <label class="label" for="rename-display">Display name</label>
+        <input id="rename-display" class="input" value="${escapeAttr(u.displayName || '')}" autocomplete="off" />
+        <label class="label mt-3" for="rename-username">Username</label>
+        <input id="rename-username" class="input" value="${escapeAttr(u.username)}" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <div class="help mt-1">They'll need to use the new username to sign in.</div>
+        <div class="flex gap-2 mt-3" style="justify-content: flex-end; flex-wrap: wrap;">
+          <button class="btn" data-modal-close type="button">Cancel</button>
+          <button class="btn btn-primary" id="rename-save" type="button">Save changes</button>
+        </div>
+        <div class="help mt-2" id="rename-status" style="min-height: 1em;"></div>
+      </div>
+    `);
+    document.getElementById('rename-save').addEventListener('click', () => {
+      const display = document.getElementById('rename-display').value.trim();
+      const username = document.getElementById('rename-username').value.trim();
+      const status = document.getElementById('rename-status');
+      const res = Users.update(userId, { displayName: display, username });
+      if (!res.ok) { status.textContent = res.error; status.style.color = 'var(--danger)'; return; }
+      toast('Optom updated', 'success');
+      close();
+      renderUsers();
+    });
+  }
+
+  // ----- Safe delete (with reassign option if user has records) -----
+  function openDeleteModal(userId) {
+    const u = Users.byId(userId);
+    if (!u) return;
+    const recs = countRecordsFor(userId);
+    const miles = countMileageFor(userId);
+    const hasData = (recs + miles) > 0;
+    const otherOptoms = Users.optomUsers().filter(x => x.id !== userId);
+
+    const reassignSelect = hasData && otherOptoms.length > 0 ? `
+      <label class="label mt-3" for="del-reassign-to">Reassign records to</label>
+      <select id="del-reassign-to" class="select">
+        ${otherOptoms.map(o => `<option value="${escapeAttr(o.id)}">${escapeHTML(o.displayName || o.username)} (@${escapeHTML(o.username)})</option>`).join('')}
+      </select>
+      <div class="help mt-1">The ${recs} record${recs === 1 ? '' : 's'} and ${miles} mileage entr${miles === 1 ? 'y' : 'ies'} will move to this optom.</div>
+    ` : '';
+
+    const orphanWarning = hasData ? `
+      <div class="help mt-3" style="color: var(--danger);">
+        Or delete without reassigning — records will stay in the database but won't be visible to any optom (admin can still see them).
+      </div>
+    ` : '';
+
+    const { close } = openModal(`
+      ${modalHead(`Delete ${u.displayName || u.username}?`, `This removes @${u.username}'s login. ${hasData ? `They have ${recs} record${recs === 1 ? '' : 's'} and ${miles} mileage entr${miles === 1 ? 'y' : 'ies'}.` : `They have no records or mileage entries.`}`)}
+      <div class="modal-body" style="padding: 18px;">
+        ${reassignSelect}
+        ${orphanWarning}
+        <div class="flex gap-2 mt-3" style="justify-content: flex-end; flex-wrap: wrap;">
+          <button class="btn" data-modal-close type="button">Cancel</button>
+          ${hasData && otherOptoms.length > 0 ? `
+            <button class="btn btn-primary" id="del-reassign-go" type="button">Reassign &amp; delete</button>
+            <button class="btn btn-danger" id="del-orphan-go" type="button">Delete anyway</button>
+          ` : `
+            <button class="btn btn-danger" id="del-orphan-go" type="button">Delete optom</button>
+          `}
+        </div>
+      </div>
+    `);
+
+    const reassignBtn = document.getElementById('del-reassign-go');
+    if (reassignBtn) {
+      reassignBtn.addEventListener('click', () => {
+        const toId = document.getElementById('del-reassign-to').value;
+        if (!toId) return;
+        reassignAllFor(userId, toId);
+        const res = Users.remove(userId);
+        if (!res.ok) { toast(res.error, 'error'); return; }
+        deletePrefsFor(userId);
+        toast(`Deleted ${u.displayName || u.username}, records reassigned`, 'success');
+        close();
+        renderUsers();
+      });
+    }
+    const orphanBtn = document.getElementById('del-orphan-go');
+    if (orphanBtn) {
+      orphanBtn.addEventListener('click', () => {
+        const res = Users.remove(userId);
+        if (!res.ok) { toast(res.error, 'error'); return; }
+        deletePrefsFor(userId);
+        toast(`Deleted ${u.displayName || u.username}`, 'success');
+        close();
+        renderUsers();
+      });
+    }
+  }
+
+  // ----- Per-optom prefs editor -----
+  function openEditPrefsModal(userId) {
+    const u = Users.byId(userId);
+    if (!u) return;
+    const p = getPrefs(userId);
+    const { close } = openModal(`
+      ${modalHead(`Preferences for ${u.displayName || u.username}`, `These are the same settings ${u.displayName || u.username} sees in their own Settings page.`)}
+      <div class="modal-body" style="padding: 18px;">
+        <label class="label" for="opt-home-address">Home address</label>
+        <input id="opt-home-address" class="input" placeholder="e.g. 5 Park Lane, Bath BA1 1AA" value="${escapeAttr(p.homeAddress || '')}" />
+        <div class="help mt-1">
+          ${p.homeLat != null && p.homeLng != null
+            ? `✓ Located at ${p.homeLat.toFixed(4)}, ${p.homeLng.toFixed(4)}`
+            : (p.homeAddress ? '<span style="color: var(--danger);">Not located yet. They can click Geocode in their own Settings.</span>' : 'Optional. Leave blank to skip the Home leg.')}
+        </div>
+
+        <label class="label mt-3" for="opt-eod-email">End-of-day recipient email</label>
+        <input id="opt-eod-email" class="input" type="email" inputmode="email" placeholder="${escapeAttr(EOD_EMAIL_DEFAULT)}" value="${escapeAttr(p.eodEmailTo || '')}" />
+
+        <label class="label mt-3" for="opt-eod-endpoint">Apps Script endpoint URL</label>
+        <input id="opt-eod-endpoint" class="input" type="url" inputmode="url" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec" value="${escapeAttr(p.eodEndpointUrl || '')}" />
+        <div class="help mt-1">Direct-send URL. Leave blank to use the iOS share sheet fallback.</div>
+
+        <label class="label mt-3" for="opt-tomtom">TomTom API key</label>
+        <input id="opt-tomtom" class="input" type="password" autocomplete="off" placeholder="Paste TomTom API key" value="${escapeAttr(p.tomtomKey || '')}" />
+
+        <label class="label mt-3" for="opt-cushion">Arrival cushion (min)</label>
+        <select id="opt-cushion" class="select" style="max-width: 200px;">
+          ${[5, 10, 15, 20].map(n => `<option value="${n}" ${p.arrivalCushionMin === n ? 'selected' : ''}>${n} min</option>`).join('')}
+        </select>
+
+        <div class="help mt-3" style="font-style: normal;">
+          KPI targets are edited from this optom's own Settings page (too detailed to fit here). To edit targets on their behalf, ask them to share their device or sign them in temporarily.
+        </div>
+
+        <div class="flex gap-2 mt-3" style="justify-content: flex-end; flex-wrap: wrap;">
+          <button class="btn" data-modal-close type="button">Cancel</button>
+          <button class="btn btn-primary" id="opt-save" type="button">Save preferences</button>
+        </div>
+        <div class="help mt-2" id="opt-status" style="min-height: 1em;"></div>
+      </div>
+    `, { width: '560px' });
+
+    document.getElementById('opt-save').addEventListener('click', () => {
+      const homeAddressNew = document.getElementById('opt-home-address').value.trim();
+      const eodEmailTo = document.getElementById('opt-eod-email').value.trim();
+      const eodEndpointUrl = document.getElementById('opt-eod-endpoint').value.trim();
+      const tomtomKey = document.getElementById('opt-tomtom').value.trim();
+      const arrivalCushionMin = parseInt(document.getElementById('opt-cushion').value, 10) || 5;
+
+      // If the home address text changed, drop the old coordinates so the optom
+      // re-geocodes on their own device the next time they open Settings.
+      let homeLat = p.homeLat, homeLng = p.homeLng, homeDisplay = p.homeDisplay;
+      if (homeAddressNew !== (p.homeAddress || '')) { homeLat = null; homeLng = null; homeDisplay = ''; }
+      if (!homeAddressNew) { homeLat = null; homeLng = null; homeDisplay = ''; }
+
+      setPrefs({
+        homeAddress: homeAddressNew,
+        homeLat, homeLng, homeDisplay,
+        eodEmailTo, eodEndpointUrl, tomtomKey, arrivalCushionMin,
+      }, userId);
+
+      toast(`Preferences saved for ${u.displayName || u.username}`, 'success');
+      close();
+      renderUsers();
     });
   }
 }
