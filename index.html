@@ -872,9 +872,11 @@
     .mobile-tab.active { color: var(--primary); }
     .mobile-tab.active span { font-weight: 600; }
 
-    /* Mobile More bottom sheet */
+    /* Mobile More bottom sheet
+       Leaflet creates panes/markers/controls with z-index up to 1000, so the
+       sheet and its backdrop sit at 1200/1199 to stay above any open map. */
     .mobile-more-sheet {
-      display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+      display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200;
       background: var(--surface); border-top: 1px solid var(--border);
       border-radius: 16px 16px 0 0;
       padding: 12px 12px calc(16px + env(safe-area-inset-bottom));
@@ -883,10 +885,13 @@
     }
     .mobile-more-sheet.open { display: block; }
     .mobile-more-backdrop {
-      display: none; position: fixed; inset: 0; z-index: 94;
+      display: none; position: fixed; inset: 0; z-index: 1199;
       background: rgba(0,0,0,.35);
     }
     .mobile-more-backdrop.open { display: block; }
+    /* When the More sheet is open, mute any Leaflet controls (zoom buttons,
+       attribution) so they don't poke through visually. */
+    body.more-sheet-open .leaflet-control-container { visibility: hidden; }
     .mobile-more-handle {
       width: 36px; height: 4px; border-radius: 2px;
       background: var(--border-strong); margin: 4px auto 12px;
@@ -1951,8 +1956,16 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   const sheet = document.getElementById('mobile-more-sheet');
   const backdrop = document.getElementById('mobile-more-backdrop');
   const moreBtn = document.getElementById('mobile-more-btn');
-  const openSheet = () => { sheet.classList.add('open'); backdrop.classList.add('open'); };
-  const closeSheet = () => { sheet.classList.remove('open'); backdrop.classList.remove('open'); };
+  const openSheet = () => {
+    sheet.classList.add('open'); backdrop.classList.add('open');
+    // Tag the body so we can hide Leaflet controls that would otherwise
+    // poke through the sheet on the Map tab.
+    document.body.classList.add('more-sheet-open');
+  };
+  const closeSheet = () => {
+    sheet.classList.remove('open'); backdrop.classList.remove('open');
+    document.body.classList.remove('more-sheet-open');
+  };
 
   // Bottom-tab routes
   document.querySelectorAll('.mobile-tab[data-mobile-route]').forEach(btn => {
@@ -5983,8 +5996,14 @@ function getEodEmail() {
 
 // Today's visits for the current user. Patient records are tagged with userId;
 // admin sees everyone's, regular users see only their own.
+//
+// Note: visits are stored with visitDate = todayWeekdayISO() (which rolls
+// Sat/Sun back to the previous Friday because the practice is M–F only).
+// We must use the same date here, otherwise on a weekend the EoD screen
+// would show 0 visits even though Friday's records are sitting there waiting
+// to be submitted.
 function eodTodaysVisits() {
-  const today = todayISO();
+  const today = todayWeekdayISO();
   const userId = Users.currentUserId;
   return State.patients.filter(p => {
     if (p.visitDate !== today) return false;
@@ -6012,7 +6031,9 @@ function eodIsUnactioned(p) {
 // Each (date, user) pair has at most one combined entry; we return as an array
 // for forward-compat and to make admin-aggregation natural.
 function eodTodaysMileage() {
-  const today = todayISO();
+  // Align with eodTodaysVisits — use the working-day date so EoD shows the
+  // right mileage when submitting on a Sat/Sun.
+  const today = todayWeekdayISO();
   const userId = Users.currentUserId;
   const log = loadMileage();
   const entries = (log.entries || []).filter(e => {
@@ -6025,7 +6046,10 @@ function eodTodaysMileage() {
 
 function renderEndOfDay() {
   const root = document.getElementById('route-end-of-day');
-  const today = todayISO();
+  // Use the working-day date so the EoD card matches what's actually being
+  // submitted (visits are stored against the working day, not the wall-clock
+  // calendar day).
+  const today = todayWeekdayISO();
   const todays = eodTodaysVisits();
   const unactioned = todays.filter(eodIsUnactioned);
   const todaysMileage = eodTodaysMileage();
@@ -6263,7 +6287,8 @@ async function eodSubmit(visits, mileage) {
     return;
   }
 
-  const today = todayISO();
+  // Submit and clear the working-day's records (Sat/Sun roll back to Fri).
+  const today = todayWeekdayISO();
   const totalMiles = mileage.reduce((s, e) => s + (e.miles || 0), 0);
   const totalDriveMinutes = mileage.reduce((s, e) => s + (e.driveMinutes || 0), 0);
   const payload = {
