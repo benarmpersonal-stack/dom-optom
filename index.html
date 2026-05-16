@@ -567,6 +567,16 @@
   .reason-row .reason-text { flex: 1; font-size: 13px; }
   .reason-row .reason-edit-input { flex: 1; }
 
+  /* Optom pill (records table + edit screen) */
+  .optom-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    background: var(--surface-2, rgba(0,0,0,0.06));
+    color: var(--text);
+    font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
   /* Users page list */
   .users-list { display: flex; flex-direction: column; }
   .users-row {
@@ -977,18 +987,31 @@
       border-bottom: 1px solid var(--border);
       margin-bottom: 8px;
     }
-    /* Label cells with their column meaning */
+    /* Label cells with their column meaning. Use td:not([data-col]) to skip the Optom
+       column when admin is signed in, then nth-of-type counts shift naturally. */
     #route-records td:nth-child(2)::before { content: "Date: "; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(3)::before { content: "Grade: "; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(4)::before { content: "Outcome: "; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(5)::before { content: "Sales: £"; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(5) { font-variant-numeric: tabular-nums; }
-    #route-records td:nth-child(6)::before { content: "Dispenses: "; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(7)::before { content: "Reglazes: "; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(8)::before { content: "Referral: "; color: var(--text-muted); font-weight: 500; }
-    #route-records td:nth-child(9)::before { content: "Follow-up: "; color: var(--text-muted); font-weight: 500; }
-    /* Action buttons row */
-    #route-records td:nth-child(10) {
+    /* Optom column (admin only) — labeled and pulled below the date row. */
+    #route-records td[data-col="optom"]::before { content: "Optom: "; color: var(--text-muted); font-weight: 500; }
+    /* Default (no Optom column) — Grade through Follow-up sit at child 3..9 */
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(3)::before { content: "Grade: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(4)::before { content: "Outcome: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(5)::before { content: "Sales: £"; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(5) { font-variant-numeric: tabular-nums; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(6)::before { content: "Dispenses: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(7)::before { content: "Reglazes: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(8)::before { content: "Referral: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:not(:has(td[data-col="optom"])) td:nth-child(9)::before { content: "Follow-up: "; color: var(--text-muted); font-weight: 500; }
+    /* Admin variant (with Optom column) — columns shift by +1 */
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(4)::before { content: "Grade: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(5)::before { content: "Outcome: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(6)::before { content: "Sales: £"; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(6) { font-variant-numeric: tabular-nums; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(7)::before { content: "Dispenses: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(8)::before { content: "Reglazes: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(9)::before { content: "Referral: "; color: var(--text-muted); font-weight: 500; }
+    #route-records tr:has(td[data-col="optom"]) td:nth-child(10)::before { content: "Follow-up: "; color: var(--text-muted); font-weight: 500; }
+    /* Action buttons row (last child handles both layouts) */
+    #route-records td:last-child:not([data-col]) {
       display: flex !important;
       gap: 6px;
       padding-top: 8px;
@@ -996,7 +1019,7 @@
       border-top: 1px solid var(--border);
       justify-content: flex-end;
     }
-    #route-records td:nth-child(10) .btn { flex: 0 0 auto; }
+    #route-records td:last-child:not([data-col]) .btn { flex: 0 0 auto; }
     /* Make Yes/No (referral/followup) inline-aligned nicely */
     #route-records .yesno {
       display: inline-flex;
@@ -1618,6 +1641,16 @@ function currentUserMileage(entries) {
   const u = Users.current();
   if (!u) return [];
   return (entries || []).filter(e => (e.userId || 'user-optom') === u.id);
+}
+// Friendly label for a userId — used in the Records table, CSV/XLSX exports,
+// and the End-of-Day JSON payload so it's always clear which optom saw which
+// patient. Falls back to the username (and finally the raw id) if the user
+// has been deleted but their records remain.
+function userLabel(userId) {
+  const uid = userId || 'user-optom';
+  const u = Users.byId(uid);
+  if (!u) return uid;
+  return u.displayName || u.username || uid;
 }
 function patientUserId(p) { return p.userId || 'user-optom'; }
 function mileageUserId(e) { return e.userId || 'user-optom'; }
@@ -3277,6 +3310,7 @@ function renderNewPatient(prefill = null, lastSaved = null) {
                 ? `Will save as <strong style="color: var(--accent); font-family: var(--mono);">${__form.visitDate}-${__form._preferredLetter}</strong> — reserved from route map stop ${__form._preferredLetter}.`
                 : 'A unique anonymous ID (date + letter) is generated automatically on save. Pick an active patient from the route map, or fill out the form directly.'
           }</p>
+          ${isEdit && __form.userId ? `<div class="mt-1"><span class="optom-pill" title="@${escapeAttr((Users.byId(__form.userId)||{}).username||__form.userId)}">Optom: ${escapeHTML(userLabel(__form.userId))}</span></div>` : ''}
         </div>
       </div>
 
@@ -5525,8 +5559,10 @@ function recordsApplyFilters(list) {
 
 function renderRecords() {
   const root = document.getElementById('route-records');
-  // Records list is per-user. Admins use OVERSIGHT for cross-user viewing.
-  const all = currentUserPatients().slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  // Admins see records across all optoms (with Optom column).
+  // Optoms see only their own.
+  const source = Users.isAdmin() ? State.patients : currentUserPatients();
+  const all = source.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const f = __recordsState.search.toLowerCase();
   let rows = !f ? all : all.filter(p =>
     p.anonId.toLowerCase().includes(f) ||
@@ -5613,6 +5649,7 @@ function renderRecords() {
               <thead>
                 <tr>
                   <th>Anon ID</th><th>Date</th>
+                  ${Users.isAdmin() ? '<th>Optom</th>' : ''}
                   <th>Grade</th>
                   <th>Outcome</th>
                   <th class="right">Sales (£)</th>
@@ -5625,7 +5662,7 @@ function renderRecords() {
               </thead>
               <tbody>
                 ${rows.length === 0 ? `
-                  <tr><td colspan="10" style="text-align: center; padding: 60px 0; color: var(--text-muted);">
+                  <tr><td colspan="${Users.isAdmin() ? 11 : 10}" style="text-align: center; padding: 60px 0; color: var(--text-muted);">
                     ${all.length === 0 ? 'No records yet. Add your first patient.' : 'No matches.'}
                   </td></tr>` :
                   rows.map(p => {
@@ -5645,10 +5682,14 @@ function renderRecords() {
                     const gradeCell = grade && ['A','B','C','D'].includes(grade)
                       ? `<span class="grade-badge grade-${grade}">${grade}</span>`
                       : '<span class="text-muted">—</span>';
+                    const optomCell = Users.isAdmin()
+                      ? `<td data-col="optom"><span class="optom-pill" title="${escapeAttr('@' + (Users.byId(patientUserId(p))?.username || patientUserId(p)))}">${escapeHTML(userLabel(patientUserId(p)))}</span></td>`
+                      : '';
                     return `
                     <tr${rowClass}>
                       <td class="mono">${escapeHTML(p.anonId)}</td>
                       <td>${escapeHTML(p.visitDate)}</td>
+                      ${optomCell}
                       <td>${gradeCell}</td>
                       <td>${dispensed
                         ? '<span class="badge primary">Dispensed</span>'
@@ -5791,9 +5832,10 @@ function flattenForExport() {
   // Admin exports all records; regular users export their own only.
   const source = Users.isAdmin() ? State.patients : currentUserPatients();
   for (const p of source) {
+    const optom = userLabel(patientUserId(p));
     if (!(p.pairs || []).length) {
       rows.push({
-        anonId: p.anonId, visitDate: p.visitDate,
+        anonId: p.anonId, visitDate: p.visitDate, optom,
         pairNum: '', pairFrames: '', pairReglaze: '',
         pairPrice: '', pairDispensed: '', pairReason: '',
         patientTotal: 0, patientFrames: 0, patientReglazes: 0,
@@ -5804,7 +5846,7 @@ function flattenForExport() {
     }
     p.pairs.forEach((pair, i) => {
       rows.push({
-        anonId: p.anonId, visitDate: p.visitDate,
+        anonId: p.anonId, visitDate: p.visitDate, optom,
         pairNum: i + 1, pairFrames: pair.framesCount, pairReglaze: pair.reglaze ? 'Yes' : 'No',
         pairPrice: Number(pair.price) || 0,
         pairDispensed: pair.dispensed ? 'Yes' : 'No',
@@ -5822,7 +5864,7 @@ function flattenForExport() {
 
 function exportCSV() {
   const rows = flattenForExport();
-  const headers = ['anon_id', 'visit_date',
+  const headers = ['anon_id', 'visit_date', 'optom',
     'pair_num', 'pair_frames', 'pair_reglaze', 'pair_price', 'pair_dispensed', 'pair_reason',
     'patient_total', 'patient_frames', 'patient_reglazes',
     'clinical_referral', 'notes', 'created_at'];
@@ -5834,7 +5876,7 @@ function exportCSV() {
   const lines = [headers.join(',')];
   for (const r of rows) {
     lines.push([
-      r.anonId, r.visitDate,
+      r.anonId, r.visitDate, r.optom,
       r.pairNum, r.pairFrames, r.pairReglaze, r.pairPrice, r.pairDispensed, r.pairReason,
       r.patientTotal, r.patientFrames, r.patientReglazes,
       r.clinicalReferral, r.notes, r.createdAt,
@@ -5845,7 +5887,7 @@ function exportCSV() {
 
 function exportXLSX() {
   const rows = flattenForExport();
-  const headers = ['Anon ID', 'Visit Date',
+  const headers = ['Anon ID', 'Visit Date', 'Optom',
     'Pair #', 'Frames', 'Reglaze', 'Price (£)', 'Dispensed', 'Reason',
     'Patient Total (£)', 'Patient Frames', 'Patient Reglazes',
     'Referral', 'Notes', 'Created At'];
@@ -5858,7 +5900,7 @@ function exportXLSX() {
   <Table>
    <Row>${headers.map(h => `<Cell><Data ss:Type="String">${xmlEsc(h)}</Data></Cell>`).join('')}</Row>
    ${rows.map(r => {
-     const cells = [r.anonId, r.visitDate,
+     const cells = [r.anonId, r.visitDate, r.optom,
        r.pairNum, r.pairFrames, r.pairReglaze, r.pairPrice, r.pairDispensed, r.pairReason,
        r.patientTotal, r.patientFrames, r.patientReglazes,
        r.clinicalReferral, r.notes, r.createdAt];
@@ -6387,16 +6429,41 @@ async function eodSubmit(visits, mileage) {
   const today = todayWeekdayISO();
   const totalMiles = mileage.reduce((s, e) => s + (e.miles || 0), 0);
   const totalDriveMinutes = mileage.reduce((s, e) => s + (e.driveMinutes || 0), 0);
+
+  // Enrich each visit and mileage entry with the optom's display label.
+  // Build a byOptom breakdown so admin EoD shows visits-per-optom at a glance.
+  const enrichedVisits = visits.map(v => {
+    const uid = patientUserId(v);
+    return { ...v, userId: uid, optomLabel: userLabel(uid) };
+  });
+  const enrichedMileage = mileage.map(e => {
+    const uid = mileageUserId(e);
+    return { ...e, userId: uid, optomLabel: userLabel(uid) };
+  });
+  const byOptom = {};
+  enrichedVisits.forEach(v => {
+    const key = v.optomLabel || v.userId || 'unknown';
+    if (!byOptom[key]) byOptom[key] = { userId: v.userId, visits: 0, miles: 0 };
+    byOptom[key].visits += 1;
+  });
+  enrichedMileage.forEach(e => {
+    const key = e.optomLabel || e.userId || 'unknown';
+    if (!byOptom[key]) byOptom[key] = { userId: e.userId, visits: 0, miles: 0 };
+    byOptom[key].miles += (e.miles || 0);
+  });
+  Object.keys(byOptom).forEach(k => { byOptom[k].miles = Number(byOptom[k].miles.toFixed(2)); });
+
   const payload = {
     submittedAt: new Date().toISOString(),
     submittedBy: (Users.current() && Users.current().username) || 'unknown',
     visitDate: today,
     visitCount: visits.length,
-    visits,
+    visits: enrichedVisits,
     mileageCount: mileage.length,
     totalMiles: Number(totalMiles.toFixed(2)),
     totalDriveMinutes,
-    mileage,
+    mileage: enrichedMileage,
+    byOptom,
   };
   const json = JSON.stringify(payload, null, 2);
   const filename = `dom-optom-${today}.json`;
